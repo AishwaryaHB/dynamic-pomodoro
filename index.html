@@ -275,6 +275,7 @@
             }
             
             generatePattern() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                 const taskValue = this.taskInput.value || 'default';
                 let seed = 0;
                 for (let i = 0; i < taskValue.length; i++) {
@@ -423,8 +424,8 @@
             animate() {
                 this.animationTime += 0.016 * (this.pattern?.speed || 0.5);
                 
-                // Fade effect
-                this.ctx.fillStyle = 'rgba(10, 10, 10, 0.05)';
+                // Fade effect (was 0.05 earlier)
+                this.ctx.fillStyle = 'rgba(10, 10, 10, 0.1)';
                 this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
                 
                 if (this.pattern && this.particles.length > 0) {
