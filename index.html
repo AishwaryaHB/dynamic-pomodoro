@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Pomodoro Timer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            background: #0a0a0a;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        .container {
+            z-index: 10;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            justify-content: space-between;
+            padding: 40px 20px;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        .timer-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-grow: 1;
+            justify-content: center;
+        }
+
+        .timer-display {
+            font-size: clamp(4rem, 15vw, 12rem);
+            font-weight: 200;
+            letter-spacing: -0.02em;
+            margin: 20px 0;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+            transition: color 0.3s ease;
+        }
+
+        .timer-display.urgent {
+            color: #ff4444;
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .controls {
+            margin: 30px 0;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .time-input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: white;
+            font-size: 16px;
+            width: 80px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .time-input:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            padding: 12px 24px;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .start-btn {
+            background: rgba(34, 197, 94, 0.2);
+            border-color: rgba(34, 197, 94, 0.4);
+        }
+
+        .start-btn:hover {
+            background: rgba(34, 197, 94, 0.3);
+        }
+
+        .pause-btn {
+            background: rgba(234, 179, 8, 0.2);
+            border-color: rgba(234, 179, 8, 0.4);
+        }
+
+        .pause-btn:hover {
+            background: rgba(234, 179, 8, 0.3);
+        }
+
+        .reset-btn {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: rgba(239, 68, 68, 0.4);
+        }
+
+        .reset-btn:hover {
+            background: rgba(239, 68, 68, 0.3);
+        }
+
+        .task-input {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 16px 20px;
+            color: white;
+            font-size: 18px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            placeholder-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .task-input:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .task-input::placeholder {
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .status {
+            font-size: 18px;
+            margin-top: 20px;
+            opacity: 0.8;
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div class="container">
+        <div class="timer-section">
+            <div class="controls">
+                <input type="number" id="timeInput" class="time-input" value="25" min="1" max="999" placeholder="25">
+                <span style="opacity: 0.7;">minutes</span>
+                <button id="testSound" style="font-size: 14px; padding: 8px 12px;">🔊 Test</button>
+            </div>
+            
+            <div class="timer-display" id="timerDisplay">25:00</div>
+            
+            <div class="controls">
+                <button id="startBtn" class="start-btn">Start</button>
+                <button id="pauseBtn" class="pause-btn" style="display: none;">Pause</button>
+                <button id="resetBtn" class="reset-btn">Reset</button>
+            </div>
+            
+            <div class="status" id="status">Ready to focus</div>
+        </div>
+        
+        <input type="text" id="taskInput" class="task-input" placeholder="What are working you on?" maxlength="100">
+    </div>
+
+    <script>
+        class EnhancedPomodoro {
+            constructor() {
+                this.canvas = document.getElementById('canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.timeInput = document.getElementById('timeInput');
+                this.timerDisplay = document.getElementById('timerDisplay');
+                this.startBtn = document.getElementById('startBtn');
+                this.pauseBtn = document.getElementById('pauseBtn');
+                this.resetBtn = document.getElementById('resetBtn');
+                this.taskInput = document.getElementById('taskInput');
+                this.status = document.getElementById('status');
+                this.testSound = document.getElementById('testSound');
+                
+                this.totalTime = 25 * 60;
+                this.timeLeft = this.totalTime;
+                this.isRunning = false;
+                this.isPaused = false;
+                this.interval = null;
+                this.animationId = null;
+                
+                // Enhanced animation properties
+                this.particles = [];
+                this.pattern = null;
+                this.animationTime = 0;
+                
+                this.setupCanvas();
+                this.setupEventListeners();
+                this.generatePattern();
+                this.animate();
+                this.updateDisplay();
+            }
+            
+            setupCanvas() {
+                this.resizeCanvas();
+                window.addEventListener('resize', () => this.resizeCanvas());
+            }
+            
+            resizeCanvas() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+            }
+            
+            setupEventListeners() {
+                this.startBtn.addEventListener('click', () => this.start());
+                this.pauseBtn.addEventListener('click', () => this.pause());
+                this.resetBtn.addEventListener('click', () => this.reset());
+                this.testSound.addEventListener('click', () => this.playSound());
+                
+                this.timeInput.addEventListener('input', () => {
+                    if (!this.isRunning) {
+                        this.totalTime = parseInt(this.timeInput.value) * 60;
+                        this.timeLeft = this.totalTime;
+                        this.updateDisplay();
+                    }
+                });
+                
+                this.taskInput.addEventListener('input', () => {
+                    this.generatePattern();
+                });
+            }
+            
+            generatePattern() {
+                const taskValue = this.taskInput.value || 'default';
+                let seed = 0;
+                for (let i = 0; i < taskValue.length; i++) {
+                    seed = seed * 31 + taskValue.charCodeAt(i);
+                }
+                seed = Math.abs(seed) + Date.now();
+                
+                const seededRandom = () => {
+                    seed = (seed * 16807) % 2147483647;
+                    return seed / 2147483647;
+                };
+                
+                const colorPalettes = [
+                    ['#4169E1', '#87CEEB', '#B0E0E6'], // Blue calm
+                    ['#FFD700', '#FFA500', '#FF69B4'], // Happy warm  
+                    ['#FF0000', '#8B0000', '#FF4500'], // Angry red
+                    ['#98FB98', '#00CED1', '#87CEEB'], // Peaceful green
+                    ['#FF1493', '#00FF00', '#FFFF00'], // Excited bright
+                    ['#667eea', '#764ba2', '#f093fb']  // Purple dreamy
+                ];
+                
+                this.pattern = {
+                    colors: colorPalettes[Math.floor(seededRandom() * colorPalettes.length)],
+                    speed: 0.3 + seededRandom() * 0.4,
+                    density: 0.4 + seededRandom() * 0.4,
+                    rhythm: ['smooth', 'pulsing', 'erratic'][Math.floor(seededRandom() * 3)],
+                    shape: ['curves', 'lines', 'circles'][Math.floor(seededRandom() * 3)],
+                    energy: 0.4 + seededRandom() * 0.6
+                };
+                
+                const numParticles = Math.floor(this.pattern.density * 100);
+                this.particles = [];
+                
+                for (let i = 0; i < numParticles; i++) {
+                    this.particles.push({
+                        x: seededRandom() * this.canvas.width,
+                        y: seededRandom() * this.canvas.height,
+                        vx: (seededRandom() - 0.5) * this.pattern.speed * 5,
+                        vy: (seededRandom() - 0.5) * this.pattern.speed * 5,
+                        size: seededRandom() * 3 + 1,
+                        angle: seededRandom() * Math.PI * 2,
+                        angleSpeed: (seededRandom() - 0.5) * 0.02,
+                        life: seededRandom(),
+                        color: this.pattern.colors[i % this.pattern.colors.length]
+                    });
+                }
+            }
+            
+            start() {
+                if (this.isPaused) {
+                    this.isPaused = false;
+                } else {
+                    this.totalTime = parseInt(this.timeInput.value) * 60;
+                    this.timeLeft = this.totalTime;
+                    this.generatePattern();
+                }
+                
+                this.isRunning = true;
+                this.startBtn.style.display = 'none';
+                this.pauseBtn.style.display = 'inline-block';
+                this.status.textContent = this.taskInput.value || 'Focus time!';
+                
+                this.interval = setInterval(() => {
+                    this.timeLeft--;
+                    this.updateDisplay();
+                    
+                    if (this.timeLeft <= 0) {
+                        this.complete();
+                    }
+                }, 1000);
+            }
+            
+            pause() {
+                this.isRunning = false;
+                this.isPaused = true;
+                clearInterval(this.interval);
+                this.startBtn.style.display = 'inline-block';
+                this.pauseBtn.style.display = 'none';
+                this.status.textContent = 'Paused - ready to resume';
+            }
+            
+            reset() {
+                this.isRunning = false;
+                this.isPaused = false;
+                clearInterval(this.interval);
+                this.totalTime = parseInt(this.timeInput.value) * 60;
+                this.timeLeft = this.totalTime;
+                this.startBtn.style.display = 'inline-block';
+                this.pauseBtn.style.display = 'none';
+                this.status.textContent = 'Ready to focus';
+                this.updateDisplay();
+                this.generatePattern();
+            }
+            
+            complete() {
+                this.isRunning = false;
+                clearInterval(this.interval);
+                this.startBtn.style.display = 'inline-block';
+                this.pauseBtn.style.display = 'none';
+                this.status.textContent = 'Well done! Take a break 🎉';
+                
+                // Play sound multiple times
+                let soundCount = 0;
+                this.playSound();
+                const soundInterval = setInterval(() => {
+                    soundCount++;
+                    if (soundCount < 3) {
+                        this.playSound();
+                    } else {
+                        clearInterval(soundInterval);
+                    }
+                }, 1000);
+            }
+            
+            playSound() {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+                
+                oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(400, audioContext.currentTime + 0.5);
+                
+                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 1.5);
+                
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 1.5);
+            }
+            
+            updateDisplay() {
+                const minutes = Math.floor(this.timeLeft / 60);
+                const seconds = this.timeLeft % 60;
+                this.timerDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                
+                // Add urgent class when time is running low
+                if (this.timeLeft <= 300 && this.isRunning) {
+                    this.timerDisplay.classList.add('urgent');
+                } else {
+                    this.timerDisplay.classList.remove('urgent');
+                }
+            }
+            
+            animate() {
+                this.animationTime += 0.016 * (this.pattern?.speed || 0.5);
+                
+                // Fade effect
+                this.ctx.fillStyle = 'rgba(10, 10, 10, 0.05)';
+                this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                
+                if (this.pattern && this.particles.length > 0) {
+                    const progress = this.isRunning ? (this.totalTime - this.timeLeft) / this.totalTime : 0;
+                    const intensity = Math.pow(progress, 1.5);
+                    const currentSpeed = this.pattern.speed * (1 + intensity * 3);
+                    const currentEnergy = this.pattern.energy * (1 + intensity * 2);
+                    
+                    this.particles.forEach((particle, index) => {
+                        // Update position based on rhythm
+                        if (this.pattern.rhythm === 'smooth') {
+                            particle.x += particle.vx * currentSpeed;
+                            particle.y += particle.vy * currentSpeed;
+                        } else if (this.pattern.rhythm === 'pulsing') {
+                            const pulse = Math.sin(this.animationTime * 2);
+                            particle.x += particle.vx * currentSpeed * (1 + pulse * 0.5);
+                            particle.y += particle.vy * currentSpeed * (1 + pulse * 0.5);
+                        } else {
+                            particle.x += particle.vx * currentSpeed + (Math.random() - 0.5) * currentEnergy * 2;
+                            particle.y += particle.vy * currentSpeed + (Math.random() - 0.5) * currentEnergy * 2;
+                        }
+                        
+                        // Wrap around edges
+                        if (particle.x < 0) particle.x = this.canvas.width;
+                        if (particle.x > this.canvas.width) particle.x = 0;
+                        if (particle.y < 0) particle.y = this.canvas.height;
+                        if (particle.y > this.canvas.height) particle.y = 0;
+                        
+                        // Update life and angle
+                        particle.angle += particle.angleSpeed * currentEnergy;
+                        particle.life += 0.01 * currentSpeed;
+                        if (particle.life > 1) {
+                            particle.life = 0;
+                            particle.x = Math.random() * this.canvas.width;
+                            particle.y = Math.random() * this.canvas.height;
+                        }
+                        
+                        // Draw particle
+                        this.ctx.save();
+                        this.ctx.translate(particle.x, particle.y);
+                        this.ctx.rotate(particle.angle);
+                        
+                        const alpha = particle.life * (0.5 + intensity * 0.5);
+                        this.ctx.globalAlpha = alpha;
+                        this.ctx.fillStyle = particle.color;
+                        this.ctx.strokeStyle = particle.color;
+                        this.ctx.lineWidth = 1 + intensity;
+                        
+                        if (this.pattern.shape === 'curves') {
+                            this.ctx.beginPath();
+                            this.ctx.moveTo(0, 0);
+                            this.ctx.quadraticCurveTo(
+                                particle.size * 10,
+                                particle.size * 5 * Math.sin(this.animationTime + index),
+                                particle.size * 20,
+                                0
+                            );
+                            this.ctx.stroke();
+                        } else if (this.pattern.shape === 'lines') {
+                            this.ctx.beginPath();
+                            this.ctx.moveTo(-particle.size * 10, 0);
+                            this.ctx.lineTo(particle.size * 10, 0);
+                            this.ctx.stroke();
+                        } else {
+                            this.ctx.beginPath();
+                            this.ctx.arc(0, 0, particle.size * 5 * (1 + intensity * 0.5), 0, Math.PI * 2);
+                            this.ctx.fill();
+                        }
+                        
+                        this.ctx.restore();
+                    });
+                    
+                    // Draw connections between nearby particles
+                    for (let i = 0; i < this.particles.length; i++) {
+                        for (let j = i + 1; j < Math.min(this.particles.length, i + 10); j++) {
+                            const p1 = this.particles[i];
+                            const p2 = this.particles[j];
+                            const dx = p1.x - p2.x;
+                            const dy = p1.y - p2.y;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            
+                            if (distance < 100 * (1 + intensity)) {
+                                this.ctx.beginPath();
+                                this.ctx.moveTo(p1.x, p1.y);
+                                this.ctx.lineTo(p2.x, p2.y);
+                                this.ctx.globalAlpha = (1 - distance / 100) * 0.2 * currentEnergy;
+                                this.ctx.strokeStyle = this.pattern.colors[0];
+                                this.ctx.stroke();
+                            }
+                        }
+                    }
+                }
+                
+                this.animationId = requestAnimationFrame(() => this.animate());
+            }
+        }
+        
+        // Initialize the app
+        new EnhancedPomodoro();
+    </script>
+</body>
+</html>
